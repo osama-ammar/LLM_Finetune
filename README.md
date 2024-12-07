@@ -1,5 +1,4 @@
-**LLM Finetuning
-**
+# LLM Finetuning
 
 ---
 
@@ -8,8 +7,8 @@
 
 ## TODO
 
-- [ ] getting a working finetuning pipeline
-- [ ] using LoRA and QLoRA
+- [X] getting a working finetuning pipeline
+- [X] using LoRA and QLoRA
 - [ ] using mlflow
   - [ ] using normal tracking techniques
   - [ ] using inference and testing in mlflow
