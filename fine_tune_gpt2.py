@@ -5,26 +5,25 @@ from transformers import GPT2Tokenizer, GPT2LMHeadModel
 from peft import get_peft_model, LoraConfig, TaskType
 import mlflow
 import os
+from helper_functions import *
+import yaml
+import warnings
+warnings.filterwarnings("ignore")
+
+
 
 
 
 # Load the configuration file
 with open("config.yaml", "r") as f:
     config = yaml.safe_load(f)
+    
 # Dynamically set the device parameter
-config["training"]["device"] = "cuda" if torch.cuda.is_available() else "cpu"
-batch_size = config["training"]["batch_size"]
-block_size = config["training"]["block_size"]
 device = config["training"]["device"]
 use_mlflow = config["training"]["use_mlflow"]
 device = "cuda" if torch.cuda.is_available() else "cpu"
-max_iters = config["training_params"]["max_iters"]
-learning_rate = config["training_params"]["learning_rate"]
-eval_iters = config["training_params"]["eval_iters"]
-
-
-
-
+learning_rate = config["optimizer"]["lr"]
+epochs = config["training_params"]["epochs"]
 
 
 # Step 1: Data Preparation
@@ -65,12 +64,12 @@ texts = [
 
 #moving model ind data to cuda
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token  # Ensure padding compatibility
-
 dataset = TextDataset(texts, tokenizer, max_length=10,device=device)
 loader = DataLoader(dataset, batch_size=5, shuffle=True)
+
+
 
 # Step 2: Model Initialization
 model = GPT2LMHeadModel.from_pretrained("gpt2")

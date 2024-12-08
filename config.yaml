@@ -2,14 +2,11 @@
 training:
   batch_size: 128
   block_size: 64
-  n_embd: 384
-  n_head: 8
-  n_layer: 8
   dropout: 0.2
   device: "cuda"
-  use_mlflow: False
+  use_mlflow: True
   
-optimizer:
+:
   lr: 0.001
   weight_decay: 0.01
 
@@ -17,29 +14,16 @@ scheduler:
   step_size: 10
   gamma: 0.1
 
-data:
-  train_data_path: "data/vocab_chars.txt"
-  val_data_path: "data/vocab_chars.txt"
-  test_data_path: "data/test.txt"
-  unique_vocab: "data/vocab.txt"
 
 model:
-  block_size: 128
-  max_iters: 200
-  learning_rate: 0.0002
-  eval_iters: 100
-  n_embd: 384
-  n_head: 1
-  n_layer: 1
   dropout: 0.2
 
 training_params:
-  num_epochs: 20
+  epochs: 20
   log_interval: 5
   save_interval: 1
   output_dir: "model_output/"
   max_iters : 500
-  learning_rate : 0.001
   eval_iters : 5
 
 
