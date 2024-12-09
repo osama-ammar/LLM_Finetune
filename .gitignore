@@ -1,1 +1,3 @@
 *.pth
+*mlruns/
+*__pycache__/
