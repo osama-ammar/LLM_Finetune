@@ -1,12 +1,14 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
-from transformers import GPT2Tokenizer, GPT2LMHeadModel
+from transformers import GPT2Tokenizer, GPT2LMHeadModel,pipeline
 from peft import get_peft_model, LoraConfig, TaskType
 import mlflow
 import os
 from helper_functions import *
 import yaml
+from sklearn.model_selection import train_test_split
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -57,18 +59,31 @@ lora_config = LoraConfig(
 
 # we will fine tune the model over this text
 texts = [
-    "The cat sat on the mat.",
-    "The dog barked at the moon.",
-    "Birds fly high in the sky."
+    "osama is working at atomica",
+    "osama is a biophysicist.",
+    "osama holds a master degree."
+    "osama is working at atomica.ai",
+    "osama is a physicist.",
+    "osama holds a MSC degree."
+    "osama is working at atomica",
+    "osama is a biophysicist.",
 ]
 
 #moving model ind data to cuda
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token  # Ensure padding compatibility
-dataset = TextDataset(texts, tokenizer, max_length=10,device=device)
-loader = DataLoader(dataset, batch_size=5, shuffle=True)
 
+
+# Split dataset into training and validation sets
+train_texts, val_texts = train_test_split(texts, test_size=0.2, random_state=42)
+
+# Create training and validation datasets and loaders
+train_dataset = TextDataset(train_texts, tokenizer, max_length=10, device=device)
+val_dataset = TextDataset(val_texts, tokenizer, max_length=10, device=device)
+
+train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=5, shuffle=False)
 
 
 # Step 2: Model Initialization
@@ -83,18 +98,45 @@ model.to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
 loss_fn = nn.CrossEntropyLoss()
 
-def run_training():
-    # Training loop
+def training_epoch():
     model.train()
-    epochs = 200
+    for batch in train_loader:
+        optimizer.zero_grad()
+        outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["input_ids"])
+        train_loss = outputs.loss
+        train_loss.backward()
+        optimizer.step()
+    return train_loss
+
+def validation_epoch():
+    model.eval()
+    for batch in val_loader:
+        optimizer.zero_grad()
+        outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["input_ids"])
+        validation_loss = outputs.loss
+        validation_loss.backward()
+        optimizer.step()
+    return validation_loss
+    
+        
+        
+    
+def run_training():
     for epoch in range(epochs):
-        for batch in loader:
-            optimizer.zero_grad()
-            outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["input_ids"])
-            loss = outputs.loss
-            loss.backward()
-            optimizer.step()
-        print(f"Epoch {epoch+1}, Loss: {loss.item()}")
+        training_loss = training_epoch()
+        validation_loss = validation_epoch()
+        
+        print(f"Epoch {epoch+1}, training_loss: {training_loss.item()} ,validation_loss: {validation_loss.item() }")
+            
+        if use_mlflow:
+            mlflow.log_metric("train_loss", training_loss ,step=epoch)
+            mlflow.log_metric("validation_loss", validation_loss, step=epoch)
+            mlflow.pytorch.log_model(
+                model,
+                artifact_path="model",
+                registered_model_name="llm_model",
+                input_example=None,
+            )
     torch.save(model , "gpt2_model.pth")
 
 
@@ -112,11 +154,32 @@ else:
 
 
 
+# If you're going to run this on something other than a Macbook Pro, change the device to the applicable type. "mps" is for Apple Silicon architecture in torch.
+
+tuned_pipeline = pipeline(
+    task="text-generationn",
+    model=model,
+    batch_size=5,
+    tokenizer=tokenizer,
+    device="cpu",
+)
+
+quick_check = (
+    "I have a question regarding the project development timeline and allocated resources; "
+    "specifically, how certain are you that John and Ringo can work together on writing this next song? "
+    "Do we need to get Paul involved here, or do you truly believe, as you said, 'nah, they got this'?"
+)
+
+tuned_pipeline(quick_check)
+
+
+
+
 
 # Step 4: Evaluation
 model.to(torch.device("cpu"))
 model.eval()
-sample_input = tokenizer("The cat", return_tensors="pt")
+sample_input = tokenizer("osama", return_tensors="pt")
 output = model.generate(sample_input["input_ids"], max_length=10)
 print("Generated text:", tokenizer.decode(output[0], skip_special_tokens=True))
 
