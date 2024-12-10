@@ -4,7 +4,6 @@
 
 * In this Project I will explore LLMs finetuning with **LoRA** and **QLoRA** with adoption of **MLOps** using **MLFlow** , I will not use Python notebooks to avoid being far away from production environment.
 
-
 ## TODO
 
 - [X] getting a working finetuning pipeline
@@ -15,3 +14,5 @@
   - [ ] using mlflow serve
 - [ ] trying different finetuning techniques
 - [ ] preparing the project to be a template for different finetuning projects
+- [ ] using the a finetuned model in RAG pipeline
+- [ ] simple UI to chat with documents

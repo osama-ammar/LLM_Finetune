@@ -8,10 +8,9 @@ import os
 from helper_functions import *
 import yaml
 from sklearn.model_selection import train_test_split
-
 import warnings
 warnings.filterwarnings("ignore")
-
+#os.environ["TF_ENABLE_ONEDNN_OPTS=0"]=0
 
 
 
@@ -26,7 +25,6 @@ use_mlflow = config["training"]["use_mlflow"]
 device = "cuda" if torch.cuda.is_available() else "cpu"
 learning_rate = config["optimizer"]["lr"]
 epochs = config["training_params"]["epochs"]
-
 
 # Step 1: Data Preparation
 class TextDataset(Dataset):
@@ -56,18 +54,17 @@ lora_config = LoraConfig(
     lora_dropout=0.1                # Dropout rate to avoid overfitting
 )
 
-
 # we will fine tune the model over this text
 texts = [
-    "osama is working at atomica",
-    "osama is a biophysicist.",
-    "osama holds a master degree."
-    "osama is working at atomica.ai",
-    "osama is a physicist.",
-    "osama holds a MSC degree."
-    "osama is working at atomica",
-    "osama is a biophysicist.",
-]
+            "osama is working at atomica",
+            "osama is a biophysicist.",
+            "osama holds a master degree."
+            "osama is working at atomica.ai",
+            "osama is a physicist.",
+            "osama holds a MSC degree."
+            "osama is working at atomica",
+            "osama is a biophysicist.",
+        ]
 
 #moving model ind data to cuda
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -118,8 +115,6 @@ def validation_epoch():
         optimizer.step()
     return validation_loss
     
-        
-        
     
 def run_training():
     for epoch in range(epochs):
@@ -140,7 +135,6 @@ def run_training():
     torch.save(model , "gpt2_model.pth")
 
 
-
 if use_mlflow:
     os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
     mlflow.set_experiment("Baseline Model")
@@ -151,35 +145,4 @@ if use_mlflow:
         run_training()
 else:
     run_training()
-
-
-
-# If you're going to run this on something other than a Macbook Pro, change the device to the applicable type. "mps" is for Apple Silicon architecture in torch.
-
-tuned_pipeline = pipeline(
-    task="text-generationn",
-    model=model,
-    batch_size=5,
-    tokenizer=tokenizer,
-    device="cpu",
-)
-
-quick_check = (
-    "I have a question regarding the project development timeline and allocated resources; "
-    "specifically, how certain are you that John and Ringo can work together on writing this next song? "
-    "Do we need to get Paul involved here, or do you truly believe, as you said, 'nah, they got this'?"
-)
-
-tuned_pipeline(quick_check)
-
-
-
-
-
-# Step 4: Evaluation
-model.to(torch.device("cpu"))
-model.eval()
-sample_input = tokenizer("osama", return_tensors="pt")
-output = model.generate(sample_input["input_ids"], max_length=10)
-print("Generated text:", tokenizer.decode(output[0], skip_special_tokens=True))
 
