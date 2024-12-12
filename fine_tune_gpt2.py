@@ -10,7 +10,7 @@ import yaml
 from sklearn.model_selection import train_test_split
 import warnings
 warnings.filterwarnings("ignore")
-#os.environ["TF_ENABLE_ONEDNN_OPTS=0"]=0
+os.environ["TF_ENABLE_ONEDNN_OPTS"]="0"
 
 
 
@@ -25,6 +25,8 @@ use_mlflow = config["training"]["use_mlflow"]
 device = "cuda" if torch.cuda.is_available() else "cpu"
 learning_rate = config["optimizer"]["lr"]
 epochs = config["training_params"]["epochs"]
+batch_size=config["training"]["batch_size"]
+lr = config["optimizer"]["lr"]
 
 # Step 1: Data Preparation
 class TextDataset(Dataset):
@@ -73,14 +75,14 @@ tokenizer.pad_token = tokenizer.eos_token  # Ensure padding compatibility
 
 
 # Split dataset into training and validation sets
-train_texts, val_texts = train_test_split(texts, test_size=0.2, random_state=42)
+train_texts, val_texts = train_test_split(texts, test_size=0.3, random_state=42)
 
 # Create training and validation datasets and loaders
-train_dataset = TextDataset(train_texts, tokenizer, max_length=10, device=device)
-val_dataset = TextDataset(val_texts, tokenizer, max_length=10, device=device)
+train_dataset = TextDataset(train_texts, tokenizer, max_length=20, device=device)
+val_dataset = TextDataset(val_texts, tokenizer, max_length=20, device=device)
 
-train_loader = DataLoader(train_dataset, batch_size=5, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=5, shuffle=False)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 
 
 # Step 2: Model Initialization
@@ -92,7 +94,7 @@ model.to(device)
 
 
 # Step 3: Training Setup
-optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
 loss_fn = nn.CrossEntropyLoss()
 
 def training_epoch():
@@ -126,12 +128,12 @@ def run_training():
         if use_mlflow:
             mlflow.log_metric("train_loss", training_loss ,step=epoch)
             mlflow.log_metric("validation_loss", validation_loss, step=epoch)
-            mlflow.pytorch.log_model(
-                model,
-                artifact_path="model",
-                registered_model_name="llm_model",
-                input_example=None,
-            )
+            # mlflow.pytorch.log_model(
+            #     model,
+            #     artifact_path="mlruns",
+            #     registered_model_name="llm_model",
+            #     input_example=None,
+            # )
     torch.save(model , "gpt2_model.pth")
 
 

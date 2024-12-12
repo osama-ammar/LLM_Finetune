@@ -1,13 +1,13 @@
 
 training:
-  batch_size: 128
-  block_size: 64
+  batch_size: 64
+  block_size: 128
   dropout: 0.2
   device: "cuda"
   use_mlflow: True
   
 optimizer:
-  lr: 0.001
+  lr: 0.002
   weight_decay: 0.01
 
 scheduler:
@@ -19,7 +19,7 @@ model:
   dropout: 0.2
 
 training_params:
-  epochs: 10
+  epochs: 100
   log_interval: 5
   save_interval: 1
   output_dir: "model_output/"

@@ -4,10 +4,18 @@ import mlflow
 import os
 from helper_functions import *
 import yaml
-from transformers import GPT2Tokenizer, GPT2LMHeadModel,pipeline
-
+from transformers import GPT2Tokenizer, BitsAndBytesConfig,pipeline
 import warnings
 warnings.filterwarnings("ignore")
+
+
+
+
+
+
+
+
+
 tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
 tokenizer.pad_token = tokenizer.eos_token  # Ensure padding compatibility
 
@@ -22,7 +30,7 @@ model = torch.load("gpt2_model.pth")
 # If you're going to run this on something other than a Macbook Pro, change the device to the applicable type. "mps" is for Apple Silicon architecture in torch.
 
 tuned_pipeline = pipeline(
-    task="text-generationn",
+    task="text-generation",
     model=model,
     batch_size=5,
     tokenizer=tokenizer,
