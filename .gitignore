@@ -1,1 +1,6 @@
 *.pth
+*.pkl
+*mlruns/
+*__pycache__/
+*saved_model
+*saved_models
