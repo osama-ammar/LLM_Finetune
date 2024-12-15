@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
-from transformers import GPT2Tokenizer, GPT2LMHeadModel,pipeline
+from transformers import GPT2Tokenizer, GPT2LMHeadModel , pipeline
 from peft import get_peft_model, LoraConfig, TaskType
 import mlflow
 import os
@@ -9,11 +9,12 @@ from helper_functions import *
 import yaml
 from sklearn.model_selection import train_test_split
 import warnings
+# from optimum.onnxruntime import ORTModelForCausalLM
+# from optimum.onnxruntime.configuration import OptimizationConfig
+
+
 warnings.filterwarnings("ignore")
 os.environ["TF_ENABLE_ONEDNN_OPTS"]="0"
-
-
-
 
 # Load the configuration file
 with open("config.yaml", "r") as f:
@@ -22,11 +23,17 @@ with open("config.yaml", "r") as f:
 # Dynamically set the device parameter
 device = config["training"]["device"]
 use_mlflow = config["training"]["use_mlflow"]
-device = "cuda" if torch.cuda.is_available() else "cpu"
-learning_rate = config["optimizer"]["lr"]
-epochs = config["training_params"]["epochs"]
+epochs = config["training"]["epochs"]
 batch_size=config["training"]["batch_size"]
+output_path = config["training"]["output_dir"]
+
+lora_rank = config["lora"]["rank"]
+lora_alpha = config["lora"]["alpha"]
+lora_dropout = config["lora"]["dropout"]
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 lr = config["optimizer"]["lr"]
+mode = config["mode"]
 
 # Step 1: Data Preparation
 class TextDataset(Dataset):
@@ -51,9 +58,9 @@ class TextDataset(Dataset):
 lora_config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,   # Define the task type (causal language model) This type of model predicts the next word/token in a sequence based on the input context. Common examples include GPT-style models like GPT-2, GPT-3, etc. Why Specify: Different tasks (e.g., causal LM, sequence classification, masked LM) have different objectives,
     inference_mode=False,           # Set to False for fine-tuning
-    r=16,                           # Rank of the LoRA matrices (low-rank factorization) lower rank ---> smaller metrices to fine tune ---> less GPU consumption and faster training
-    lora_alpha=32,                  # Scaling factor for LoRA :The LoRA updates are scaled by dividing them by `lora_alpha`  ,  The updates become smaller relative to the pre-trained weights.This leads to conservative fine-tuning, meaning the model changes less and retains more of its pre-trained behavior , Preserving the original knowledge of the pre-trained model (higher lora_alpha). , Adapting the model to new data (lower lora_alpha)..
-    lora_dropout=0.1                # Dropout rate to avoid overfitting
+    r=lora_rank,                           # Rank of the LoRA matrices (low-rank factorization) lower rank ---> smaller metrices to fine tune ---> less GPU consumption and faster training
+    lora_alpha=lora_alpha,                  # Scaling factor for LoRA :The LoRA updates are scaled by dividing them by `lora_alpha`  ,  The updates become smaller relative to the pre-trained weights.This leads to conservative fine-tuning, meaning the model changes less and retains more of its pre-trained behavior , Preserving the original knowledge of the pre-trained model (higher lora_alpha). , Adapting the model to new data (lower lora_alpha)..
+    lora_dropout=lora_dropout                # Dropout rate to avoid overfitting
 )
 
 # we will fine tune the model over this text
@@ -64,8 +71,6 @@ texts = [
             "osama is working at atomica.ai",
             "osama is a physicist.",
             "osama holds a MSC degree."
-            "osama is working at atomica",
-            "osama is a biophysicist.",
         ]
 
 #moving model ind data to cuda
@@ -90,8 +95,6 @@ model = GPT2LMHeadModel.from_pretrained("gpt2")
 model.resize_token_embeddings(len(tokenizer))
 model = get_peft_model(model, lora_config)
 model.to(device)
-
-
 
 # Step 3: Training Setup
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
@@ -118,7 +121,7 @@ def validation_epoch():
     return validation_loss
     
     
-def run_training():
+def run_training(model_path):
     for epoch in range(epochs):
         training_loss = training_epoch()
         validation_loss = validation_epoch()
@@ -128,23 +131,73 @@ def run_training():
         if use_mlflow:
             mlflow.log_metric("train_loss", training_loss ,step=epoch)
             mlflow.log_metric("validation_loss", validation_loss, step=epoch)
-            # mlflow.pytorch.log_model(
-            #     model,
-            #     artifact_path="mlruns",
-            #     registered_model_name="llm_model",
-            #     input_example=None,
-            # )
-    torch.save(model , "gpt2_model.pth")
 
-
-if use_mlflow:
-    os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
-    mlflow.set_experiment("Baseline Model")
-    with mlflow.start_run():
-        mlflow.pytorch.log_model(
-            model, artifact_path="model", pip_requirements="requirements.txt"
+            
+    torch.save(model , model_path)
+    save_weights(model,output_path,mode='pkl')
+    # Save the Hugging Face model format
+    model.save_pretrained(output_path)
+    tokenizer.save_pretrained(output_path)
+    #onnx_export(output_path)
+###############################################################################################3
+def mlflow_log_model(model):
+        # model = torch.load("saved_models/gpt2_model.pth")
+        # model.to(device)
+        # pipeline will enable us to easily make predictions with the model.
+        tuned_pipeline = pipeline(
+            task="text-generation",
+            model=model,
+            batch_size=batch_size,
+            tokenizer=tokenizer,
+            device=device,
         )
-        run_training()
-else:
-    run_training()
+        
+        # check tuned pipeline
+        tuned_pipeline("osama is ")
+        
+        # Define a set of parameters that we would like to be able to flexibly override at inference time, along with their default values
+        model_config = {"batch_size": batch_size}
 
+        # Infer the model signature, including a representative input, the expected output, and the parameters that we would like to be able to override at inference time.
+        signature = mlflow.models.infer_signature(
+            ["osama"],
+            mlflow.transformers.generate_signature_output(
+                tuned_pipeline, ["is working as engineer"]
+            ),
+            params=model_config,
+        )
+
+        model_info = mlflow.transformers.log_model(
+            transformers_model=tuned_pipeline,
+            artifact_path="fine_tuned",
+            signature=signature,
+            input_example=["osama was."],
+            model_config=model_config,
+            )
+        return model_info
+##################################################################################################
+
+if mode=="train":
+    model_path= f"{output_path}/gpt2_model.pth"
+    if use_mlflow:
+        os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
+        mlflow.set_experiment("llm fine-tuning")
+        with mlflow.start_run() as run:
+            run_training(model_path)
+            model_info=mlflow_log_model(model)
+            
+            # validate the performance of our fine-tuning
+            loaded = mlflow.transformers.load_model(model_uri=model_info.model_uri)
+            loaded("osama still")
+    else:
+        run_training()
+
+#############################################################################
+
+
+
+
+
+# serve th#e mode l: mlflow models serve --model-uri "runs:/<run_id>/model" --host 0.0.0.0 --port 5001
+# . Use the Model for Inference
+# Set up a Web Interface for the Conversational Model

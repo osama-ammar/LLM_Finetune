@@ -3,6 +3,8 @@ import mmap
 import random
 import pickle
 from torch.nn import Module
+# from optimum.onnxruntime import ORTModelForCausalLM
+# from optimum.onnxruntime.configuration import OptimizationConfig
 
 # from onnx import load as load_onnx
 # from onnx.checker import check_model
@@ -135,13 +137,20 @@ def get_random_chunk(chars, batch_size, block_size, split="train"):
 
 def save_weights(
     model: Module,
-    path: str,
+    path: str='.',
     mode: str = "pth"
 ) -> None:
 
     if mode == "pkl":
         with open("model_pickled.pkl", "wb") as f:
             pickle.dump(model, f)
+            
+            #saving the model using hugging face transformers lib
+            model.save_pretrained("saved_model")
+            
+            
+        print("Model and tokenizer saved successfully!")
+                    
     else:
         state = {
         "state_dict": model.to("cpu").state_dict(),
@@ -160,45 +169,18 @@ def load_ckp(checkpoint_path, model, optimizer):
     return model, optimizer, checkpoint["epoch"]
 
 
-# def onnx_export(model, dummy_input, save_path):
-#     """export ....."""
 
-#     # send the dummy input to cpu
-#     dummy_input = dummy_input.to("cpu")
+# from optimum.onnxruntime import ORTModelForCausalLM
+# from transformers import GPT2LMHeadModel
+# def onnx_export(model_path):
 
-#     input_names = ["input"]
-#     output_names = ["output"]
-#     # to make the onnx model accept different input batch sizes
-#     dynamic_axes = {"input": {0: "batch_size"}, "output": {0: "batch_size"}}
+#     # Convert the model to ONNX format
+#     onnx_model_path = "gpt2_finetuned.onnx"
 
-#     torch.onnx.export(
-#         model,
-#         dummy_input,
-#         save_path,
-#         input_names=input_names,
-#         output_names=output_names,
-#         dynamic_axes=dynamic_axes,
-#         export_params=True,
-#         keep_initializers_as_inputs=False,
-#         do_constant_folding=True,  # Constant folding is a technique that can be used to optimize ONNX models. It involves statically computing parts of the graph that rely only on constant initializers. This eliminates the need to compute them during runtime, which can improve the performance of the model.
-#         opset_version=16,  # onnx version to export to
-#     )
+#     # Export the model to ONNX
+#     model = GPT2LMHeadModel.from_pretrained(model_path)  # Load the model again if needed
+#     onnx_model = ORTModelForCausalLM.from_transformers(model)  # Convert model
+#     onnx_model.save_model(onnx_model_path)  # Save the ONNX model
+#     print(f"Fine-tuned model successfully exported to ONNX")
 
-#     # Checks
-#     model_onnx = load_onnx(save_path)  # load onnx model
-#     check_model(model_onnx)  # check onnx model
-#     print("Model exported to ONNX format.")
-
-
-# def use_onnx(onnx_model_path, input):
-#     """usi ....."""
-
-#     # Run the ONNX model with the dummy input tensor
-#     session = onnxrt.InferenceSession(onnx_model_path)
-
-#     input_names = ["input"]
-#     output_names = ["output"]
-#     result = session.run(output_names, {input_names: input})
-
-#     # Print the output of the ONNX model
-#     print(result)
+# onnx_export("./saved_models/")

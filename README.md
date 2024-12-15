@@ -16,3 +16,4 @@
 - [ ] preparing the project to be a template for different finetuning projects
 - [ ] using the a finetuned model in RAG pipeline
 - [ ] simple UI to chat with documents
+- [ ] converting to onnx .......
