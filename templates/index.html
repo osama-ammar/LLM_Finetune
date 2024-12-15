@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generative Model</title>
+</head>
+<body>
+    <h1>Generative Model</h1>
+    <form action="/predict" method="post">
+        <label for="input_text">Input Text:</label><br>
+        <textarea id="input_text" name="input_text" rows="4" cols="50"></textarea><br><br>
+        <button type="submit">Generate</button>
+    </form>
+
+    {% if output %}
+        <h2>Generated Output:</h2>
+        <p>{{ output }}</p>
+    {% endif %}
+
+    {% if error %}
+        <h2 style="color: red;">Error:</h2>
+        <p>{{ error }}</p>
+    {% endif %}
+</body>
+</html>

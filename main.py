@@ -155,6 +155,8 @@ def mlflow_log_model(model):
         # check tuned pipeline
         tuned_pipeline("osama is ")
         
+        tuned_pipeline.tokenizer.pad_token_id = tuned_pipeline.model.config.eos_token_id
+        
         # Define a set of parameters that we would like to be able to flexibly override at inference time, along with their default values
         model_config = {"batch_size": batch_size}
 
