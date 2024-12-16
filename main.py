@@ -117,7 +117,7 @@ def validation_epoch():
         outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["input_ids"])
         validation_loss = outputs.loss
         validation_loss.backward()
-        optimizer.step()
+        
     return validation_loss
     
     
@@ -141,22 +141,27 @@ def run_training(model_path):
     #onnx_export(output_path)
 ###############################################################################################3
 def mlflow_log_model(model):
-        # model = torch.load("saved_models/gpt2_model.pth")
-        # model.to(device)
-        # pipeline will enable us to easily make predictions with the model.
+    
+        mlflow.log_param("learning_rate", lr)
+        mlflow.log_param("batch_size", batch_size)
+        mlflow.log_param("lora_rank", lora_rank)
+        
         tuned_pipeline = pipeline(
             task="text-generation",
             model=model,
             batch_size=batch_size,
             tokenizer=tokenizer,
             device=device,
+            pad_token_id= model.config.eos_token_id
         )
+        tuned_pipeline.tokenizer.pad_token_id = model.config.eos_token_id
         
         # check tuned pipeline
         tuned_pipeline("osama is ")
         
         tuned_pipeline.tokenizer.pad_token_id = tuned_pipeline.model.config.eos_token_id
-        
+        # Verify configuration
+        assert tokenizer.pad_token_id == tokenizer.eos_token_id, "pad_token_id not properly set"
         # Define a set of parameters that we would like to be able to flexibly override at inference time, along with their default values
         model_config = {"batch_size": batch_size}
 
@@ -179,11 +184,14 @@ def mlflow_log_model(model):
         return model_info
 ##################################################################################################
 
+
 if mode=="train":
     model_path= f"{output_path}/gpt2_model.pth"
     if use_mlflow:
         os.environ["MLFLOW_ENABLE_SYSTEM_METRICS_LOGGING"] = "true"
         mlflow.set_experiment("llm fine-tuning")
+        
+
         with mlflow.start_run() as run:
             run_training(model_path)
             model_info=mlflow_log_model(model)
