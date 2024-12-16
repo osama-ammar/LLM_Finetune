@@ -2,6 +2,8 @@
 
 
 """
+
+
 Quantization
 =============
 a) symmetric               b)asymmetric
@@ -9,6 +11,9 @@ a) symmetric               b)asymmetric
 1- post training           2- during training
 
 
+# running Fast-api 
+===================
+uvicorn app:app --reload
 
 
 
