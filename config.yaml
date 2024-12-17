@@ -3,15 +3,14 @@ training:
   batch_size: 64
   block_size: 128
   dropout: 0.2
-  device: "cuda"
   use_mlflow: True
-  epochs: 50
+  epochs: 6
   log_interval: 5
   save_interval: 1
   output_dir: "./saved_model/"
   max_iters : 500
   eval_iters : 5
-
+  quatize: True
 
 lora:
   rank: 16
