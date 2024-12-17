@@ -2,7 +2,7 @@
 
 ### In this Project I :
 
-* Finetuned GPT2 with LoRA
+* Finetuned GPT2 with LoRA and QLoRA
 * Used MLFlow for experiments tracking and reproducibility
 * Deployed the finetuned LLM with Fast API
 
@@ -20,7 +20,7 @@
   - [ ] using mlflow serve
 - [ ] trying different finetuning techniques
 - [X] Deployment using Fast API
-- [ ] preparing the project to be a template for different finetuning projects
+- [\] preparing the project to be a template for different finetuning projects
 - [ ] using the a finetuned model in RAG pipeline
 - [ ] simple UI to chat with documents
 - [ ] converting to onnx .......
