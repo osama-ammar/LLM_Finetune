@@ -143,7 +143,7 @@ def save_weights(
 
     if mode == "pkl":
         with open("model_pickled.pkl", "wb") as f:
-            pickle.dump(model, f)
+            pickle.dump(model.state_dict(), f)
             
             #saving the model using hugging face transformers lib
             model.save_pretrained("saved_model")
@@ -184,3 +184,46 @@ def load_ckp(checkpoint_path, model, optimizer):
 #     print(f"Fine-tuned model successfully exported to ONNX")
 
 # onnx_export("./saved_models/")
+
+
+from peft import get_peft_model, LoraConfig, TaskType   # Supports QLoRA and LoRA.
+def model_with_lora(model,lora_rank,lora_alpha,lora_dropout):
+    lora_config = LoraConfig(
+        task_type=TaskType.CAUSAL_LM,   # Define the task type (causal language model) This type of model predicts the next word/token in a sequence based on the input context. Common examples include GPT-style models like GPT-2, GPT-3, etc. Why Specify: Different tasks (e.g., causal LM, sequence classification, masked LM) have different objectives,
+        inference_mode=False,           # Set to False for fine-tuning
+        r=lora_rank,                    # Rank of the LoRA matrices (low-rank factorization) lower rank ---> smaller metrices to fine tune ---> less GPU consumption and faster training
+        lora_alpha=lora_alpha,          # Scaling factor for LoRA :The LoRA updates are scaled by dividing them by `lora_alpha`  ,  The updates become smaller relative to the pre-trained weights.This leads to conservative fine-tuning, meaning the model changes less and retains more of its pre-trained behavior , Preserving the original knowledge of the pre-trained model (higher lora_alpha). , Adapting the model to new data (lower lora_alpha)..
+        lora_dropout=lora_dropout       # Dropout rate to avoid overfitting
+    )
+    return  get_peft_model(model, lora_config)
+
+
+# In soft-prompting, you do not use a traditional "text prompt" like you would i
+# n manual prompting (e.g., "Summarize this text:"). Instead, the soft prompt consists
+# of learnable embeddings that are prepended to the input tokens. These embeddings are 
+# trained to guide the model toward task-specific behavior.
+class SoftPromptedModel(torch.nn.Module):
+    def __inti__(self,  model, prompt_length):
+        super(SoftPromptedModel, self).__init__() #used in Python to call the constructor (or initializer) of the parent class (torch.nn.Module in this case).
+        # get the model and freeze its weights
+        self.model = model
+        self.prompt_length=prompt_length
+        
+        # get the soft_prompt layer 
+        self.prompt_embeddings =  torch.nn.Parameter(torch.randn(prompt_length, model.config.n_embd))
+        
+        # freeze all model model params
+        for param in self.model.parameters:
+            param.requuire_grad=False
+            
+        def forward(self,input_ids , attention_mask = None):
+            # Prepend prompt embeddings to the input tokens
+            prompt = self.prompt_embeddings.unsqueeze(0).expand(input_ids.size(0), -1, -1)
+            input_ids_with_prompt = torch.cat([prompt, input_ids], dim=1)
+
+            # Forward pass through GPT-2
+            # input_ids: Provides the actual data (prompt + text) for the model to process.
+            # attention_mask: Tells the model which parts of the input are real and which parts should be ignored (e.g., padding).
+            outputs = self.model(input_ids=input_ids_with_prompt, attention_mask=attention_mask)
+            return outputs
+
