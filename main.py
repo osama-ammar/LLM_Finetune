@@ -73,27 +73,34 @@ def training_epoch():
 
 def validation_epoch():
     model.eval()
+    total_loss = 0
     for batch in val_loader:
         optimizer.zero_grad()
         outputs = model(
             input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["input_ids"])
         validation_loss = outputs.loss
-        validation_loss.backward()
+        total_loss += validation_loss.item() * batch['input_ids'].size(0)
 
-    return validation_loss
+        validation_loss.backward()
+    avg_loss = total_loss / len(val_loader.dataset)
+    # Perplexity = common evaluation metric for language models, measuring how well the model predicts the next token || measure of uncertainty.
+    # It is defined as the exponential of the average negative log-likelihood || lower perplexity is better
+    perplexity = torch.exp(torch.tensor(avg_loss)).item()
+    return validation_loss, perplexity
 
 
 def run_training(model_path):
     for epoch in range(epochs):
         training_loss = training_epoch()
-        validation_loss = validation_epoch()
+        validation_loss, perplexity = validation_epoch()
 
         print(
-            f"Epoch {epoch+1}, training_loss: {training_loss.item()} ,validation_loss: {validation_loss.item() }")
+            f"Epoch {epoch+1}, training_loss: {training_loss.item()} ,validation_loss: {validation_loss.item() } ,perplexity: {perplexity} ")
 
         if use_mlflow:
             mlflow.log_metric("train_loss", training_loss, step=epoch)
             mlflow.log_metric("validation_loss", validation_loss, step=epoch)
+            mlflow.log_metric("perplexity", perplexity, step=epoch)
 
     torch.save(model.state_dict(), model_path)
     save_weights(model, output_path, mode='pkl')
