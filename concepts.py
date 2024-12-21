@@ -1,6 +1,5 @@
 
 
-
 """
 
 
@@ -43,8 +42,3 @@ Example Workflow
     Inference: During inference, the modified weights W+ΔW are used, where ΔW is the product of the learned A and B.
 
 """
-
-
-
-
-

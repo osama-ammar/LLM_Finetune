@@ -11,6 +11,8 @@ training:
   max_iters : 500
   eval_iters : 5
   quatize: True
+  use_lora_ft : True
+  use_soft_prompt : False
 
 lora:
   rank: 16
